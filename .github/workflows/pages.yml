@@ -25,7 +25,7 @@ jobs:
       - name: Collect the site
         run: |
           mkdir site
-          cp web/index.html web/style.css web/app.js web/worker.js site/
+          cp web/index.html web/favicon.ico web/style.css web/app.js web/worker.js site/
           cp -r web/pkg site/pkg
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

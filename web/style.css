@@ -1,7 +1,7 @@
 :root {
   color-scheme: light dark;
   --bg: #fff;
-  --fg: #eee;
+  --panel: #eee;
   --textColor: #1c1c22;
   --muted: #666;
   --line: #d4d4dc;
@@ -12,7 +12,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #16161c;
-    --fg: #111115;
+    --panel: #111115;
     --textColor: #e8e8ee;
     --muted: #9a9aa6;
     --line: #34343e;
@@ -94,7 +94,9 @@ button[type="submit"] {
   color: var(--bg);
   justify-self: start;
   font-weight: 600;
-  &:hover {filter: brightness(1.15)};
+  &:hover {
+    filter: brightness(1.15);
+  }
 }
 
 select,
@@ -118,12 +120,7 @@ select {
   flex-wrap: wrap;
   gap: 0.4rem;
   margin-bottom: 0.5rem;
-  width: 150px
-}
-
-#tabs button[aria-selected="true"] {
-  border-color: var(--accent);
-  color: var(--accent);
+  width: min(100%, 12rem);
 }
 
 /* form */
@@ -133,7 +130,7 @@ form {
   grid-template-columns: minmax(0, 1fr);
   gap: 0.8rem;
   padding: 12px;
-  background: var(--fg);
+  background: var(--panel);
   border-radius: 8px;
 }
 
@@ -145,8 +142,19 @@ label {
 
 label.file {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  & > span {width: 150px};
+  column-gap: 0.5rem;
+
+  & > span {
+    flex: 0 0 150px;
+  }
+
+  & > input,
+  & > select {
+    flex: 1 1 12rem;
+    width: auto;
+  }
 }
 
 label.check {
@@ -155,14 +163,13 @@ label.check {
   align-items: center;
 }
 
-label.requiredIcon {
-  color: red;
-  display: inline-flex;
+.requiredIcon {
+  color: var(--err);
   padding: 0 4px;
 }
 
 .submit {
-  margin: 0.5rem 0 0
+  margin: 0.5rem 0 0;
 }
 
 #status {

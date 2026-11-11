@@ -22,6 +22,7 @@ const COMMANDS = {
         options: ["raw", "hat", "object", "floating-object"],
       },
     ],
+    json: (v) => v.type !== "raw",
     run: (v) => ["sprite", [v.image, v.type]],
   },
   chest: {
@@ -37,6 +38,7 @@ const COMMANDS = {
       v.chestFemale.length || v.chestMale.length
         ? null
         : "Give at least one of the chests.",
+    json: () => true,
     run: (v) => [
       "shirt",
       [v.chestFemale, v.chestMale, v.frontSleeve, v.backSleeve],
@@ -53,12 +55,14 @@ const COMMANDS = {
         type: "check",
       },
     ],
+    json: () => true,
     run: (v) => ["pants", [v.pants, v.hideBody]],
   },
   back: {
     title: "Back",
     help: "A custom back item.",
     fields: [{ name: "back", label: "Back", type: "file", required: true }],
+    json: () => true,
     run: (v) => ["back", [v.back]],
   },
   humanoid: {
@@ -102,21 +106,36 @@ const COMMANDS = {
   },
 };
 
-const worker = new Worker(new URL("./worker.js", import.meta.url), {
-  type: "module",
-});
+let worker;
+let loadError = null;
 let nextId = 0;
 const pending = new Map();
-worker.onmessage = ({ data }) => {
-  const { resolve, reject } = pending.get(data.id);
-  pending.delete(data.id);
-  data.error === undefined ? resolve(data) : reject(new Error(data.error));
-};
-worker.onerror = (event) => {
-  for (const { reject } of pending.values())
-    reject(new Error(event.message || "the worker failed"));
+const failAll = (message) => {
+  for (const { reject } of pending.values()) reject(new Error(message));
   pending.clear();
 };
+// a panic leaves the wasm instance unusable, so a crashed worker is replaced
+function startWorker() {
+  worker?.terminate();
+  worker = new Worker(new URL("./worker.js", import.meta.url), {
+    type: "module",
+  });
+  worker.onmessage = ({ data }) => {
+    if (data.loadError !== undefined) {
+      loadError = `The generator failed to load: ${data.loadError}`;
+      showLoadError();
+      return;
+    }
+    const { resolve, reject } = pending.get(data.id);
+    pending.delete(data.id);
+    if (data.crashed) startWorker();
+    data.error === undefined ? resolve(data) : reject(new Error(data.error));
+  };
+  worker.onerror = (event) => {
+    failAll(event.message || "the worker failed");
+    startWorker();
+  };
+}
 const call = (command, args) =>
   new Promise((resolve, reject) => {
     const id = nextId++;
@@ -134,13 +153,17 @@ const description = $("description");
 const errorBox = $("error");
 const status = $("status");
 let current = "sprite";
+let downloadExtension = "txt";
+
+function showLoadError() {
+  if (!loadError) return;
+  errorBox.textContent = loadError;
+  errorBox.hidden = false;
+}
 
 function show(key) {
   current = key;
   const command = COMMANDS[key];
-
-  for (const button of tabs.children)
-    button.setAttribute("aria-selected", String(button.dataset.key === key));
 
   help.textContent = command.help;
   form.replaceChildren();
@@ -152,7 +175,14 @@ function show(key) {
     const label = document.createElement("label");
     const text = document.createElement("span");
 
-    text.innerHTML = field.label + (field.required ? '<label class="requiredIcon" title="Required">*</label>' : "");
+    text.textContent = field.label;
+    if (field.required) {
+      const star = document.createElement("span");
+      star.className = "requiredIcon";
+      star.title = "Required";
+      star.textContent = "*";
+      text.append(star);
+    }
 
     let input;
     if (field.type === "select") {
@@ -168,7 +198,7 @@ function show(key) {
     label.append(...(field.type === "check" ? [input, text] : [text, input]));
     form.append(label);
   }
-  
+
   const submit = document.createElement("button");
   submit.type = "submit";
   submit.className = "submit";
@@ -177,6 +207,7 @@ function show(key) {
 
   result.hidden = true;
   errorBox.hidden = true;
+  showLoadError();
 }
 
 async function values(command) {
@@ -202,6 +233,7 @@ function init() {
     errorBox.hidden = true;
     result.hidden = true;
     try {
+      if (loadError) throw new Error(loadError);
       const v = await values(command);
       const missing = command.fields.find(
         (field) => field.required && !v[field.name].length,
@@ -211,11 +243,12 @@ function init() {
       if (problem) throw new Error(problem);
 
       status.textContent = "Generating...";
-      status.style.display = "unset";
+      status.hidden = false;
 
       const [name, args] = command.run(v);
       const reply = await call(name, args);
       output.value = reply.content;
+      downloadExtension = command.json?.(v) ? "json" : "txt";
       description.textContent =
         reply.description || `${reply.content.length} chars`;
       result.hidden = false;
@@ -224,7 +257,7 @@ function init() {
       errorBox.hidden = false;
     } finally {
       status.textContent = "";
-      status.style.display = "none";
+      status.hidden = true;
     }
   };
 
@@ -241,22 +274,23 @@ function init() {
 
   $("download").onclick = () => {
     const link = document.createElement("a");
-    const json = output.value.trimStart().startsWith("{");
     link.href = URL.createObjectURL(
       new Blob([output.value], { type: "text/plain" }),
     );
-    link.download = `${current}.${json ? "json" : "txt"}`;
+    link.download = `${current}.${downloadExtension}`;
     link.click();
     URL.revokeObjectURL(link.href);
   };
 
   const modeSelector = document.createElement("select");
+  modeSelector.setAttribute("aria-label", "What to generate");
   for (const [key, command] of Object.entries(COMMANDS)) {
     modeSelector.appendChild(new Option(command.title, key));
   }
-  modeSelector.addEventListener("change", function() {show(this.value)})
-  tabs.append(modeSelector)
+  modeSelector.addEventListener("change", () => show(modeSelector.value));
+  tabs.append(modeSelector);
 
+  startWorker();
   show(current);
 }
 
