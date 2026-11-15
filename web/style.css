@@ -77,8 +77,8 @@ input[type="file"] {
 }
 
 button {
-  background: none;
-  border: 1px solid var(--line);
+  background: var(--panel);
+  border: none;
   border-radius: 6px;
   padding: 0.35rem 0.8rem;
   cursor: pointer;
@@ -183,6 +183,11 @@ label.check {
   white-space: pre-wrap;
   color: var(--muted);
   margin: 0 0 0.5rem;
+}
+
+#output {
+  background: var(--panel);
+  border: none;
 }
 
 textarea {
