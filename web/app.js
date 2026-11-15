@@ -147,6 +147,7 @@ const $ = (id) => document.getElementById(id);
 const tabs = $("tabs");
 const form = $("form");
 const help = $("help");
+const autocopy = $("autocopy");
 const result = $("result");
 const output = $("output");
 const description = $("description");
@@ -199,12 +200,6 @@ function show(key) {
     form.append(label);
   }
 
-  const submit = document.createElement("button");
-  submit.type = "submit";
-  submit.className = "submit";
-  submit.textContent = "Generate";
-  form.append(submit);
-
   result.hidden = true;
   errorBox.hidden = true;
   showLoadError();
@@ -227,7 +222,7 @@ async function values(command) {
 }
 
 function init() {
-  form.onsubmit = async (event) => {
+  $("submit").onclick = async (event) => {
     event.preventDefault();
     const command = COMMANDS[current];
     errorBox.hidden = true;
@@ -252,6 +247,9 @@ function init() {
       description.textContent =
         reply.description || `${reply.content.length} chars`;
       result.hidden = false;
+      if (autocopy.checked) {
+        navigator.clipboard.writeText(output.value)
+      }
     } catch (error) {
       errorBox.textContent = error.message;
       errorBox.hidden = false;
