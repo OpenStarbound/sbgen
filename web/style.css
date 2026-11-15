@@ -88,17 +88,6 @@ button:disabled {
   opacity: 0.5;
 }
 
-button[type="submit"] {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--bg);
-  justify-self: start;
-  font-weight: 600;
-  &:hover {
-    filter: brightness(1.15);
-  }
-}
-
 select,
 input[type="file"] {
   width: 100%;
@@ -169,7 +158,14 @@ label.check {
 }
 
 .submit {
-  margin: 0.5rem 0 0;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+  justify-self: start;
+  font-weight: 600;
+  &:hover {
+    filter: brightness(1.15);
+  }
 }
 
 #status {
@@ -205,6 +201,7 @@ textarea {
 
 .row {
   display: flex;
+  align-items: center;
   gap: 0.5rem;
   margin-top: 0.5rem;
 }
