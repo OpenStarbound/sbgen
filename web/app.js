@@ -35,9 +35,9 @@ const COMMANDS = {
       { name: "backSleeve", label: "Back sleeve", type: "file" },
     ],
     need: (v) =>
-      v.chestFemale.length || v.chestMale.length
+      v.chestFemale.length || v.chestMale.length || v.frontSleeve.length || v.backSleeve.length
         ? null
-        : "Give at least one of the chests.",
+        : "At least one image is required.",
     json: () => true,
     run: (v) => [
       "shirt",
@@ -89,7 +89,7 @@ const COMMANDS = {
     need: (v) =>
       v.body.length || v.head.length || v.frontArm.length || v.backArm.length
         ? null
-        : "Give at least one image.",
+        : "At least one image is required.",
     run: (v) => [
       "humanoid",
       [v.bodyType, v.species, v.body, v.head, v.frontArm, v.backArm],
