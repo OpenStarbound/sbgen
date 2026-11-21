@@ -1,11 +1,11 @@
 const SPECIES = [
-  "apex",
-  "avian",
-  "floran",
-  "glitch",
-  "human",
-  "hylotl",
-  "novakid",
+  "Apex",
+  "Avian",
+  "Floran",
+  "Glitch",
+  "Human",
+  "Hylotl",
+  "Novakid",
 ];
 
 // fields: file (optional unless required), select, check
@@ -19,7 +19,7 @@ const COMMANDS = {
         name: "type",
         label: "Output Format",
         type: "select",
-        options: ["raw", "hat", "object", "floating-object"],
+        options: ["Raw", "Hat", "Object", "Floating-Object"],
       },
     ],
     json: (v) => v.type !== "raw",
@@ -35,9 +35,9 @@ const COMMANDS = {
       { name: "backSleeve", label: "Back sleeve", type: "file" },
     ],
     need: (v) =>
-      v.chestFemale.length || v.chestMale.length
+      v.chestFemale.length || v.chestMale.length || v.frontSleeve.length || v.backSleeve.length
         ? null
-        : "Give at least one of the chests.",
+        : "At least one image is required.",
     json: () => true,
     run: (v) => [
       "shirt",
@@ -73,7 +73,7 @@ const COMMANDS = {
         name: "bodyType",
         label: "Body type",
         type: "select",
-        options: ["male", "female"],
+        options: ["Male", "Female"],
       },
       {
         name: "species",
@@ -89,7 +89,7 @@ const COMMANDS = {
     need: (v) =>
       v.body.length || v.head.length || v.frontArm.length || v.backArm.length
         ? null
-        : "Give at least one image.",
+        : "At least one image is required.",
     run: (v) => [
       "humanoid",
       [v.bodyType, v.species, v.body, v.head, v.frontArm, v.backArm],
@@ -172,6 +172,8 @@ function show(key) {
   form.append(help);
   form.append(document.createElement("hr"));
 
+  let fileInputs = []; // Keeps track of all files input elements for direct pasting
+
   for (const field of command.fields) {
     const label = document.createElement("label");
     const text = document.createElement("span");
@@ -188,7 +190,7 @@ function show(key) {
     let input;
     if (field.type === "select") {
       input = document.createElement("select");
-      for (const option of field.options) input.add(new Option(option, option));
+      for (const option of field.options) input.add(new Option(option, option.toLowerCase()));
     } else {
       input = document.createElement("input");
       input.type = field.type === "file" ? "file" : "checkbox";
@@ -198,6 +200,24 @@ function show(key) {
     label.className = field.type === "check" ? "check" : "file";
     label.append(...(field.type === "check" ? [input, text] : [text, input]));
     form.append(label);
+    if (input.type === "file") {fileInputs.push(input)}
+  }
+
+  document.onpaste = (event) => {
+    const files = event.clipboardData.files;
+    if (files && files.length > 0) {
+      if (fileInputs.length > 1) {
+        errorBox.textContent = "Quick paste is not supported for generation types with multiple input images.";
+        errorBox.hidden = false;
+      }
+      else {
+        // I couldn't get a paste event to ever send more than 1 file for some reason but here just in case
+        if (files.length == 1) {
+          fileInputs[0].files = files;
+          submit();
+        }
+      }
+    }
   }
 
   result.hidden = true;
@@ -221,43 +241,47 @@ async function values(command) {
   return out;
 }
 
-function init() {
-  $("submit").onclick = async (event) => {
-    event.preventDefault();
-    const command = COMMANDS[current];
-    errorBox.hidden = true;
-    result.hidden = true;
-    try {
-      if (loadError) throw new Error(loadError);
-      const v = await values(command);
-      const missing = command.fields.find(
-        (field) => field.required && !v[field.name].length,
-      );
-      if (missing) throw new Error(`${missing.label} is needed.`);
-      const problem = command.need?.(v);
-      if (problem) throw new Error(problem);
+async function submit() {
+  const command = COMMANDS[current];
+  errorBox.hidden = true;
+  result.hidden = true;
+  try {
+    if (loadError) throw new Error(loadError);
+    const v = await values(command);
+    const missing = command.fields.find(
+      (field) => field.required && !v[field.name].length,
+    );
+    if (missing) throw new Error(`${missing.label} is needed.`);
+    const problem = command.need?.(v);
+    if (problem) throw new Error(problem);
 
-      status.textContent = "Generating...";
-      status.hidden = false;
+    status.textContent = "Generating...";
+    status.hidden = false;
 
-      const [name, args] = command.run(v);
-      const reply = await call(name, args);
-      output.value = reply.content;
-      downloadExtension = command.json?.(v) ? "json" : "txt";
-      description.textContent =
-        reply.description || `${reply.content.length} chars`;
-      result.hidden = false;
-      if (autocopy.checked) {
-        navigator.clipboard.writeText(output.value)
-      }
-    } catch (error) {
-      errorBox.textContent = error.message;
-      errorBox.hidden = false;
-    } finally {
-      status.textContent = "";
-      status.hidden = true;
+    const [name, args] = command.run(v);
+    const reply = await call(name, args);
+    output.value = reply.content;
+    downloadExtension = command.json?.(v) ? "json" : "txt";
+    description.textContent =
+      reply.description || `${reply.content.length} chars`;
+    result.hidden = false;
+    if (autocopy.checked) {
+      navigator.clipboard.writeText(output.value)
     }
-  };
+  } catch (error) {
+    errorBox.textContent = error.message;
+    errorBox.hidden = false;
+  } finally {
+    status.textContent = "";
+    status.hidden = true;
+  }
+}
+
+function init() {
+  $("submit").onclick = (event) => {
+    event.preventDefault();
+    submit();
+  }
 
   $("copy").onclick = async () => {
     try {
